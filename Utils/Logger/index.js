@@ -1,7 +1,7 @@
 const winston  =  require('winston');
 
 
-const logger = winston.createLogger({
+exports.logger = winston.createLogger({
   levels: winston.config.syslog.levels,
   format: winston.format.combine(
     winston.format.label({ label: 'server' }),
@@ -24,4 +24,4 @@ const logger = winston.createLogger({
   ],
 });
 
-export default logger;
+

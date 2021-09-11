@@ -1,4 +1,10 @@
-export const getTemplate = async(template, data = {}, opts) => {
+
+const ejs = require("ejs");
+const fs = require("fs");
+const path = require("path");
+const inlineCss = require("inline-css");
+
+exports.getTemplate = async(template, data = {}, opts) => {
     const selection = {
       activate: fs
         .readFileSync(
@@ -11,9 +17,13 @@ export const getTemplate = async(template, data = {}, opts) => {
       changePassword: fs
         .readFileSync(
           path.join(process.cwd(), "/Utils/Email.Provider/changepassword.ejs")
+        ).toString(),
+      myAccount: fs
+        .readFileSync(
+          path.join(process.cwd(), "/Utils/Email.Provider/myAccount.ejs")
         ).toString()
     };
-    const acceptedType = ["activate", "forgotpassword", "changePassword"];
+    const acceptedType = ["activate", "forgotpassword", "changePassword", "myAccount"];
     if (!acceptedType.includes(template))
       throw new Error(
         `Unknown email template type expected one of ${acceptedType} but got ${template}`

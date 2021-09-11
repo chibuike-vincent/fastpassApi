@@ -1,6 +1,7 @@
 const mongoose = require("mongoose")
 const bcrypt = require("bcryptjs")
 const mongoosePaginate = require('mongoose-paginate-v2');
+const { UpdateTemplateRequest } = require("postmark/dist/client/models");
 
 
 const userSchema = new mongoose.Schema({
@@ -28,22 +29,33 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ["tenant", "security"],
     },
+    gender: {
+        type:String,
+        enum: ["Male", "Female"],
+        required: true
+    },
+    nextOfKin: {
+        type: String,
+        required: this.userType === "tenant" ? true : false
+    },
+    occupation: {
+        type: String,
+        required: this.userType === "tenant" ? true : false
+    },
+    houseNumber: {
+        type: String,
+        required: this.userType === "tenant" ? true : false
+    },
     resetPasswordPin: {
         type: Number
     },
     resetPasswordExpires: {
         type: String
     },
-    username: {
+    unit: {
         type: String,
     },
-    estatename: {
-        type: String,
-    },
-    unitNumber: {
-        type: String,
-    },
-    blockNumber: {
+    block: {
         type: String,
     },
     activationCode: {
@@ -55,6 +67,10 @@ const userSchema = new mongoose.Schema({
         default: "inactive"
     },
     isActive:{
+        type: Boolean,
+        default: false
+    },
+    isBlocked:{
         type: Boolean,
         default: false
     },

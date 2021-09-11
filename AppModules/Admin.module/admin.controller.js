@@ -65,7 +65,7 @@ exports.signupAdmin = async (req, res) => {
       expiresIn: EXPIRESIN,
     });
 
-    const uri = `${BASE_URI}/api/auth/verify-account/${newUser._id}/${verificationCode}`;
+    const uri = `${BASE_URI}/admin/verify-account/${newUser._id}/${verificationCode}`;
 
     const message = await getTemplate(
       "activate",
@@ -81,16 +81,9 @@ exports.signupAdmin = async (req, res) => {
         },
       }
     );
-    const msgPayload = {
-      senderName: "FastPass",
-      senderEmail: "fastpass@dev.io",
-      replyTo: "fastpass@dev.io",
-      recipientEmail: newUser.email,
-      subject: "Account Activation",
-      message: message
-    }
-    sendEmail(msgPayload)
-      .catch((error) => this.log().error(error));
+
+    sendEmail(newUser.email, message, "Account Activation")
+      .catch((error) => console.error(error));
 
     return res.json({
       token,
@@ -106,7 +99,7 @@ exports.signupAdmin = async (req, res) => {
 //Admin verify account
 exports.adminVerifyAccont = async (req, res) => {
   try {
-    const { userId, verificationCode } = req.params;
+    const { userId, secretCode } = req.params;
 
     const user = await __Admin.findOne({ _id: userId });
 
@@ -114,7 +107,7 @@ exports.adminVerifyAccont = async (req, res) => {
       return res.send("Account not found");
     }
 
-    if (user.verificationCode !== Number(verificationCode)) {
+    if (user.verificationCode !== Number(secretCode)) {
       return res.send("wrong credentials provided");
     }
     user.status = "active";
@@ -134,6 +127,12 @@ exports.loginAdmin = async (req, res) => {
   try {
     const data = req.body;
     const user = await __Admin.findOne({ email: data.email });
+    if (!user) {
+      return res.send("Error: Account with provided email not found.")
+    }
+    if (user.isBlocked) {
+      return res.send("Error: Account blocked please contact admin")
+    }
     if (!user || user === null || user === undefined) {
       return res.send("Error: Email do not match any account.");
     }
@@ -145,13 +144,13 @@ exports.loginAdmin = async (req, res) => {
     const validPassword = await bcrypt.compare(data.password, user.password);
 
     if (!validPassword) {
-      return res.send("Invalid password.Please try again.");
+      return res.send("Error: Invalid password.Please try again.");
     }
     const tokenData = {
       email: user.email,
       phone: user.phone,
       userType: user.userType,
-      estatename: user.estatename,
+      fullname: user.fullname,
       sub: user._id,
     };
 
@@ -160,6 +159,7 @@ exports.loginAdmin = async (req, res) => {
     })
 
     return res.json({
+      message: "success",
       user,
       accessToken,
     });
@@ -218,7 +218,13 @@ exports.adminForgotPassword = async (req, res) => {
     const { email } = req.body;
     const result = await __Admin.findOne({ email });
     if (!result) {
-      return res.send("error: Account does not exist with FastPass.");
+      return res.send("Error: Account with provided email not found")
+    }
+    if (result.isBlocked) {
+      return res.send("Error: Account blocked please contact admin")
+    }
+    if (!result) {
+      return res.send("Error: Account does not exist with FastPass.");
     }
 
     const pin = await getPin.pingGen();
@@ -232,7 +238,7 @@ exports.adminForgotPassword = async (req, res) => {
       {
         fullName: result.email.split("@")[0],
         message: `If you requested for a password reset service please click the button below else please kindly ignore and keep your account information secure.`,
-        link: `${req.headers.origin}/reset_password/${pin}`,
+        link: `${req.headers.origin}/resetpassword/${pin}`,
         buttonTitle: "Reset",
       },
       {
@@ -242,16 +248,7 @@ exports.adminForgotPassword = async (req, res) => {
       }
     );
 
-    const msgPayload = {
-      senderName: "FastPass",
-      senderEmail: "fastpass@dev.io",
-      replyTo: "fastpass@dev.io",
-      recipientEmail: result.email,
-      subject: "Reset Password",
-      message: message
-    }
-
-    sendEmail(msgPayload)
+    sendEmail(result.email, message, "Reset Password",)
       .catch((error) => console.error(error));
     return res.send("Reset password link has been sent to your email.");
   } catch (error) {
@@ -265,7 +262,7 @@ exports.adminChangePassword = async (req, res) => {
     const user = req.user;
     const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    const result = await __Admin.findOne({ email: user.email });
+    const result = await __Admin.findOne({ _id: user.sub });
 
     if (!result) {
       return res.send("Account does not exist with Fastpass.");
@@ -332,57 +329,255 @@ exports.adminChangePassword = async (req, res) => {
 
 // Update profile route
 exports.AdminUpdateProfile = async (req, res) => {
-const data = req.body
-  const result = await __Admin.findOneAndUpdate({ _id: userId }, data );
+  const userId = req.user.sub
+  const result = await __Admin.findOneAndUpdate({ _id: userId }, data);
   return res.json({
     message: "Profile updated",
   });
 };
 
 exports.adminGetCurrentUser = async (req, res) => {
-  const { email } = req.user;
-  const user = await __Admin.findOne({ email });
+  const { sub } = req.user;
+  const user = await __Admin.findOne({ _id: sub });
+
+  const userData = {
+    id: user._id,
+    address: user.address,
+    email: user.email,
+    fullname: user.fullname,
+    isActive: user.isActive,
+    phone: user.phone
+  }
   return res.json({
     status: 200,
-    user,
+    userData,
   });
 };
 
-exports.adminCreateTenant = async(req, res) => {
-const admin = req.admin
-const data = req.body 
-const code = await getPin.pingGen();
-const password =  "Tenant" + code
-const user = await __User.create({
-  ...data,
-  password,
-  userType: "tenant"
-})
-
-
-const message = await getTemplate(
-  "myAccount",
-  {
-    fullName: user.email.split("@")[0],
-    message: `Your account was successfully created by ${admin.estatename} and logincredentials are: Email: ${user.email} and Password: ${password}. Please ensure you change your password after login.`,
-    link: ``,
-  },
-  {
-    escape: (html) => {
-      return String(html);
-    },
+exports.adminCreateTenant = async (req, res) => {
+  try {
+    const admin = req.user
+  const data = req.body
+  const code = await getPin.pingGen();
+  const password = "Tenant@" + code
+  const existing = await __User.findOne({ email: data.email })
+  if (existing) {
+    return res.send("user with provided email exists.")
   }
-);
+  const user = await __User.create({
+    ...data,
+    password,
+    userType: "tenant",
+    createdBy: admin._id
+  })
 
-const msgPayload = {
-  senderName: admin.estatename,
-  senderEmail: "fastpass@dev.io",
-  replyTo: admin.email,
-  recipientEmail: user.email,
-  subject: "App account",
-  message: message
+
+  const message = await getTemplate(
+    "myAccount",
+    {
+      fullName: user.email.split("@")[0],
+      message: `Your account was successfully created by ${admin.fullname} and login credentials are: Email: ${user.email} and Password: ${password}. Please ensure you change your password after login.`,
+      link: ``,
+    },
+    {
+      escape: (html) => {
+        return String(html);
+      },
+    }
+  );
+
+  sendEmail(user.email, message, "App account")
+    .catch((error) => console.error(error));
+  return res.json({
+    user,
+    message:"success"
+  })
+  } catch (error) {
+    return res.send(`An error occured: ${error}`);
+  }
 }
 
-sendMail(msgPayload)
-  .catch((error) => this.log().error(error));
+
+exports.adminCreateSecurity = async (req, res) => {
+  try {
+    const admin = req.user
+  const data = req.body
+  const code = await getPin.pingGen();
+  const password = "Sec@" + code
+  const existing = await __User.findOne({ email: data.email })
+  if (existing) {
+    return "user with provided email exists."
+  }
+  const user = await __User.create({
+    ...data,
+    password,
+    userType: "security",
+    createdBy: admin._id
+  })
+
+
+  const message = await getTemplate(
+    "myAccount",
+    {
+      fullName: user.email.split("@")[0],
+      message: `Your account was successfully created by ${admin.fullname} and your login credentials are: Email: ${user.email} and Password: ${password}. Please ensure you change your password after login.`,
+      link: ``,
+    },
+    {
+      escape: (html) => {
+        return String(html);
+      },
+    }
+  );
+
+  sendEmail(user.email, message, "App account")
+    .catch((error) => this.log().error(error));
+
+  return res.json({
+    message: "success",
+    user
+  })
+
+  } catch (error) {
+    return res.send(`An error occured: ${error}`);
+  }
 }
+
+exports.adminGetAllTenants = async (req, res) => {
+  const admin = req.user
+  const user = await __User.find({
+    $and: [{ createdBy: admin._id }, { userType: "tenant" }]
+  })
+
+  if (user) {
+    res.json({
+      message: "success",
+      user
+    })
+  } else {
+    res.status(404).json({
+      message: "Failed"
+    })
+  }
+}
+
+exports.adminGetAllSecurity = async (req, res) => {
+  const admin = req.user
+  const user = await __User.find({
+    $and: [{ createdBy: admin._id }, { userType: "security" }]
+  })
+
+  if (user) {
+    res.json({
+      message: "success",
+      user
+    })
+  } else {
+    res.status(404).json({
+      message: "Failed"
+    })
+  }
+}
+
+exports.adminGetTenant = async (req, res) => {
+  const admin = req.user
+  const { tenantId } = req.params
+  const user = await __User.findOne({
+    $and: [{ createdBy: admin._id }, { _id: tenantId }]
+  })
+
+  if (user) {
+    res.json({
+      message: "success",
+      user
+    })
+  } else {
+    res.status(404).json({
+      message: "Failed"
+    })
+  }
+}
+
+exports.adminGetSecurity = async (req, res) => {
+  const admin = req.user
+  const { securityId } = req.params
+  const user = await __User.findOne({
+    $and: [{ createdBy: admin._id }, { _id: securityId }]
+  })
+
+  if (user) {
+    res.json({
+      message: "success",
+      user
+    })
+  } else {
+    res.status(404).json({
+      message: "Failed"
+    })
+  }
+}
+
+exports.adminDeleteTenant = async (req, res) => {
+  const tenantId = req.params.tenantId
+  const deleted = await __User.findOneAndDelete({
+    $and: [{ _id: tenantId }, { userType: "tenant" }]
+  })
+
+  if (deleted) {
+    res.json({
+      message: "success",
+      deleted
+    })
+  } else {
+    res.status(404).json({
+      message: "Failed"
+    })
+  }
+}
+
+exports.adminUnblockUser = async (req, res) => {
+  try {
+    const { email } = req.body
+    const updated = await __User.findOneAndUpdate(email, { isBlocked: false })
+    if (updated) {
+      res.send("user successfully unblocked")
+    } else {
+      res.send("Error unblocking user please check provided email.")
+    }
+  } catch (error) {
+    res.send("Error:", error)
+  }
+}
+
+exports.superAdminUnblockAdmin = async (req, res) => {
+  try {
+    const { email } = req.body
+    const updated = await __Admin.findOneAndUpdate(email, { isBlocked: false })
+    if (updated) {
+      res.send("user successfully unblocked")
+    } else {
+      res.send("Error unblocking user please check provided email.")
+    }
+  } catch (error) {
+    res.send("Error:", error)
+  }
+}
+
+exports.adminDeleteSecurity = async (req, res) => {
+  const securityId = req.params.securityId
+  const deleted = await __User.findOneAndDelete({
+    $and: [{ _id: securityId }, { userType: "security" }]
+  })
+
+  if (deleted) {
+    res.json({
+      message: "success",
+      deleted
+    })
+  } else {
+    res.status(404).json({
+      message: "Failed"
+    })
+  }
+}
+

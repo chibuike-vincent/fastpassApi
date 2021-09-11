@@ -3,12 +3,11 @@ const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 
-const __UserData = require("./auth.model")
-const __Logger = require("../LogModules/log.model")
-const {isAuth} =require("../../utils/isAuth")
-const {isValidIp} = require("../../utils/whitelistMiddleware")
+const __UserData = require("../../AppModels/User.model/userModel")
+//const __Logger = require("../LogModules/log.model")
+const {isAuth} =require("../../Utils/isAuth")
 
-const controller = require('./auth.contoller');
+const controller = require('./auth.controller');
 
 const limiter = rateLimit({
     max: 5,
@@ -22,23 +21,19 @@ const limiter = rateLimit({
         const user = await __UserData.findOne({email: req.body.email})
             user.isBlocked = true 
             await user.save()
-            await __Logger.create({
+            {/*await __Logger.create({
                 userEmail: req.body.email,
                 action: "Attempted Login",
                 errorMsg: "You exceeded the maximum limit level and account blocked"
-            })
+            }) */}
     }
 })
 
-router.post('/signup', controller.signup);
-router.get("/verify-account/:userId/:secretCode", controller.VerifyAccont)
-router.post('/login', isValidIp, limiter, controller.loginUser);
-router.post('/resetPassword', controller.resetPassword);
-router.post('/forgotpassword', controller.forgotPassword);
-router.post('/changepassword', isAuth, controller.changePassword);
-router.post('/unblock_user', controller.adminUnblockUser);
-router.post('/updateProfile', controller.updateProfile);
-router.post("/accept", controller.acceptDisclaimer)
+router.post('/login', limiter, controller.loginUser);
+router.post('/resetPassword', controller.userResetPassword);
+router.post('/forgotpassword', controller.userForgotPassword);
+router.post('/changepassword', isAuth, controller.userChangePassword);
+router.post('/updateProfile', isAuth, controller.userUpdateProfile);
 router.get("/currentUser", isAuth, controller.getCurrentUser)
 
 module.exports = router;

@@ -4,24 +4,32 @@ const mongoosePaginate = require('mongoose-paginate-v2');
 
 
 const visitorSchema = new mongoose.Schema({
-    firstName: {
+    visitorName: {
         type: String, 
-        required:true
-    },
-    lastName: {
-        type: String,
         required:true
     },
     phone: {
         type: String,
         required:true
     },
+    gender: {
+        type: String,
+        enum: ["Male", "Female"],
+        required: true
+    },
     email: {
         type: String,
         required: true ,
     },
-    username: {
-        type: String,
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        required: true
+    },
+    checkedInBy:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        required: true
     },
     houseNumber: {
         type: String,
@@ -32,7 +40,7 @@ const visitorSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["active", "pending", "checkedOut"],
+        enum: ["active", "pending", "checkedOut", "declined"],
         default: "pending"
     },
     isActive:{

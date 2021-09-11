@@ -1,30 +1,53 @@
-const postmark = require('postmark');
+const nodeMailer = require("nodemailer");
 
-const logger = require("../Logger")
-const config = require("../../config")
+  exports.mailer = async(emails, message, subject, fromWho)=> {
+    let transporter = nodeMailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // true for 465, false for other ports
+      auth: {
+        user: "chibuikepatrick2@gmail.com",
+        pass: "ghwfzvleykfshiea",
+      },
+      tls: { rejectUnauthorized: false },
+    });
+    // send mail with defined transport object
+    let info = await transporter.sendMail({
+      from: fromWho ? fromWho : '"FastPass" <fastpass@dev.io>', // sender address
+      // bcc : fromWho ? "info@embed.ng" : emails , // list of receivers
+      to: fromWho ? "support@fastpass.io" : emails, // list of receivers
+      subject: subject, // Subject line
+      html: message, // html body
+    });
+    return "Done";
+  }
 
+  exports.mailerTester = async(emails, message, subject, fromWho) =>{
+    // Generate test SMTP service account fromWho ethereal.email
+    // Only needed if you don't have a real mail account for testing
+    let testAccount = await nodeMailer.createTestAccount();
 
-export const sendRawEmail = async (options) => {
-    const { senderName,senderEmail, replyTo, recipientEmail, subject, message } = options
-    const serverToken = config.POSTMARK_KEY || '';
-    const client = new postmark.ServerClient(serverToken);
+    // create reusable transporter object using the default SMTP transport
+    let transporter = nodeMailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: testAccount.user, // generated ethereal user
+        pass: testAccount.pass, // generated ethereal password
+      },
+    });
 
-    /* Send Email using Postmark Templates */
-    await client
-        .sendEmail({
-            From: `${senderName} <${senderEmail}>`,
-            To: recipientEmail,
-            ReplyTo: replyTo || senderEmail,
-            HtmlBody: message,
-            Subject: subject,
-            TrackOpens: true
-        })
-        .then((response) => {
-            logger.debug(`postmark.sendEmailWithTemplate --> ${JSON.stringify(response)}`);
-            return response;
-        })
-        .catch((err) => {
-            logger.error('postmark.sendEmailWithTemplate action failed');
-            console.error(err);
-        });
-};
+    // send mail with defined transport object
+    let info = await transporter.sendMail({
+      from: fromWho ? fromWho : '"FastPass" <fastpass@dev.io>', // sender address
+      // bcc : fromWho ? "info@embed.ng" : emails , // list of receivers
+      to: fromWho ? "support@fastpass.io" : emails, // list of receivers
+      subject: subject, // Subject line
+      html: message, // html body
+    });
+    console.info("Message sent: %s", info.messageId);
+    console.info("Preview URL: %s", nodeMailer.getTestMessageUrl(info));
+  }
+
+  

@@ -4,11 +4,17 @@ const mongoosePaginate = require('mongoose-paginate-v2');
 
 
 const adminSchema = new mongoose.Schema({
-    estatename: {
+    fullname: {
         type: String,
+        required:true
     },
     phone: {
         type: String,
+        required:true
+    },
+    address: {
+        type: String,
+        required:true
     },
     email: {
         type: String,
@@ -18,9 +24,16 @@ const adminSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+    whoYouAre: {
+        type:String,
+        required: true
+    },
     userType: {
         type: String,
         required:true
+    },
+    totalBlocksOrRooms: {
+        type:String,
     },
     resetPasswordPin: {
         type: Number
@@ -37,6 +50,10 @@ const adminSchema = new mongoose.Schema({
         type: Number
     },
     isActive:{
+        type: Boolean,
+        default: false
+    },
+    isBlocked:{
         type: Boolean,
         default: false
     },

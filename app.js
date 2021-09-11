@@ -10,6 +10,8 @@
  const mongoose = require("mongoose")
  const errorHandler = require('errorhandler');
  const session = require('express-session');
+ const UserRoutes = require("./AppModules/UserAuth.module/auth.routes")
+ const AdminRoutes = require("./AppModules/Admin.module/admin.routes")
  
  const {MONGODB_URI, SESSION_SECRET} = require("./config/index")
  
@@ -34,9 +36,7 @@
   mongoose.set('useCreateIndex', true);
   mongoose.set('useNewUrlParser', true);
   mongoose.Promise = Promise;
-  mongoose.connect(MONGODB_URI, { useUnifiedTopology: true }, () => {
-   return countries()
-  });
+  mongoose.connect(MONGODB_URI, { useUnifiedTopology: true }, () => console.log("Database connection successful."));
   mongoose.connection.on('error', (err) => {
     console.error(err);
     console.log('%s MongoDB connection error. Please make sure MongoDB is running.', chalk.red('✗'));
@@ -67,7 +67,8 @@
   /**
    * Notes routes.
    */
-  
+  app.use("/user", UserRoutes)
+  app.use("/admin", AdminRoutes)
   
   /**
    * Error Handler.

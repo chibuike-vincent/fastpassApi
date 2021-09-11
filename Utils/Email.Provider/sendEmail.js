@@ -1,31 +1,8 @@
-const postmarkapp = require("./emailConfig")
-const logger = require("../Logger")
+const mailer = require("./emailConfig")
+const {NODE_ENV} = require("../../config")
 
-export const sendEmail = async (payload) => {
-    try {
-        let result;
-        if (Array.isArray(payload.recipients)) {
-            result = await payload.recipients.forEach((recipient) => {
-                postmarkapp.sendRawEmail({
-                    senderName: payload.senderName,
-                    senderEmail: payload.senderEmail,
-                    replyTo: payload.replyTo,
-                    recipientEmail: recipient.email_recipients,
-                    subject: payload.subject,
-                    message: payload.body
-                })
-            })
-        } else {
-            throw new Error("Cannot send to invalid recipient addresses")
-        }
-        console.log(result)
-        return {
-            message: "success",
-            result
-        }
 
-    } catch (err) {
-        logger.error(err)
-        return err
-    }
-}
+
+exports.sendEmail = async(emails, message, subject, fromWho) => {
+    NODE_ENV === "development" ? await mailer.mailerTester(emails, message, subject, fromWho) : await mailer.mailer(emails, message, subject, fromWho);
+   }
